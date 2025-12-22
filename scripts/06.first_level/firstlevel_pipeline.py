@@ -264,8 +264,10 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             # drop rows from beginning of confounds file
             confounds = confounds.iloc[dropvols:].reset_index(drop=True)
             
-            # remove outliers that occur before the first volume
-            outliers = outliers[outliers > dropvols] 
+            # remove outliers that occur before the first volume and re-index from 0
+            outliers = outliers[outliers >= dropvols]
+            outliers = outliers - dropvols
+            
             
         elif dropvols < 0:
             # drop rows from end of confounds file
@@ -544,6 +546,7 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             # raise error if there are no contrasts in the file for the current task
             if not contrasts:
                 raise AttributeError('No contrasts found for task {}'.format(task))
+                
         else:
             print('Skipping contrast generation')
         
@@ -899,8 +902,8 @@ def main(argv=None):
     for index, sub in enumerate(subjects):
         # check that run info was provided in subject list, otherwise throw an error
         if not args.runs:
-            raise IOError('Run information missing. Make sure you are passing a subject-run list to the pipeline!')
-                
+            raise IOError('Run information missing. Make sure you are passing a subject-run list to the pipeline!')    
+            
         # pass runs for this sub
         sub_runs=args.runs[index]
         sub_runs=sub_runs.replace(' ','').split(',') # split runs by separators
