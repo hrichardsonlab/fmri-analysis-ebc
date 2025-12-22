@@ -105,8 +105,8 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             art_file = op.join(funcDir, 'art', '{}'.format(task), 'art.{}_space-MNI152NLin2009cAsym_res-2_desc-preproc_bold_outliers.txt'.format(prefix))
 
         # get number of volumes in full functional run minus dropped volumes (done here in case splithalf files are requested)
-        nVols = (load(mni_file).shape[3] - dropvols)
-
+        nVols = (load(mni_file).shape[3] - abs(dropvols))
+        
         # define run name depending on whether run info is in file name
         if run_id != 0:
             run_name = 'run{}'.format(run_id)
@@ -158,12 +158,42 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
     datasource.inputs.ses = ses
     datasource.inputs.multiecho = multiecho
     datasource.inputs.space_name = space_name
-
+    
     # if drop volumes requested
     if dropvols != 0:
-        print('Dropping {} volumes from the beginning of the functional run.'.format(dropvols))
-        roi = Node(fsl.ExtractROI(t_min=dropvols, t_size=-1), name='extractroi')
-        wf.connect(datasource, 'mni_file', roi, 'in_file')
+        # compute values for dropping volumes (if requested)
+        def compute_extractroi_params(dropvols, nVols):
+            if dropvols > 0:
+                # drop from start
+                print('Dropping {} volumes from the beginning of the functional run'.format(dropvols))
+                t_min = dropvols
+                t_size = -1
+            elif dropvols < 0:
+                # drop from end
+                print('Dropping {} volumes from the end of the functional run'.format(abs(dropvols)))
+                t_min = 0
+                t_size = nVols
+            else:
+                t_min = 0
+                t_size = -1
+                
+            return t_min, t_size
+            
+        compute_roi_params = Node(Function(input_names=['dropvols',
+                                                        'nVols'],
+                                           output_names=['t_min',
+                                                         't_size'],
+                                           function=compute_extractroi_params),
+                                           name='dropvolumes')
+        compute_roi_params.inputs.dropvols = dropvols
+
+        roi = Node(fsl.ExtractROI(), name='extractroi')
+        
+        wf.connect([(datasource, compute_roi_params, [('nVols', 'nVols')]),
+                    (compute_roi_params, roi, [('t_min', 't_min'),('t_size', 't_size')]),
+                    (datasource, roi, [('mni_file', 'in_file')])])
+    # else:
+        # roi_file = datasource.outputs.mni_file
         
     # define function to process data into halves for analysis (if requested in config file)
     def process_data_files(sub, task, mni_file, event_file, timecourses, art_file, confound_file, regressor_opts, run_id, splithalf_id, TR, dropvols, nVols, outDir):
@@ -173,11 +203,11 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
         from pandas.errors import EmptyDataError
         import numpy as np
         from nibabel import load
-                
+        
         # read in confound file to get cosine columns
         confounds = pd.read_csv(confound_file, sep='\t', na_values='n/a')
         cosine_columns = confounds.filter(regex='^cosine').columns.tolist()
-                
+        
         # create a dictionary for mapping between config file and labels used in confounds file (more options can be added later)
         regressor_dict = {'fd': 'framewise_displacement',
                           'dvars': 'std_dvars',
@@ -234,15 +264,29 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             
             # add timecourse regressors to list of regressor names
             regressor_names.extend(list(tc_reg.columns))
+            
             # add timecourses to confounds dataframe
-            confounds = tc_reg.join(confounds)
+            confounds = tc_reg.join(confounds, how='outer')
+            
             # create empty stimuli dataframe
             stimuli = []
         else:
             stimuli = pd.read_csv(event_file, sep='\t')
         
         # remove dropped vols from confounds (important to do this prior to splitting halves, if requested)
-        confounds = confounds.iloc[dropvols:]
+        if dropvols > 0:
+            # drop rows from beginning of confounds file
+            confounds = confounds.iloc[dropvols:]
+            
+            # remove outliers that occur before the first volume
+            outliers = outliers[outliers > dropvols] 
+            
+        elif dropvols < 0:
+            # drop rows from end of confounds file
+            confounds = confounds.iloc[:dropvols]
+            
+            # remove outliers that occur after the number of volumes
+            outliers = outliers[outliers < nVols] 
         
         # get middle volume to define halves
         midVol = int(nVols/2)
@@ -687,7 +731,7 @@ def process_subject(layout, projDir, derivDir, outDir, workDir,
             tc = pd.read_csv(tc_files[0], sep='\t')
             tc.columns = tc.columns.str.lower()
             tc_dat = tc.join(tc_dat)
-        
+            
         # remove timecourses if not specified in regressors list in config file
         tc_dat=tc_dat.filter(regressor_opts)
         
