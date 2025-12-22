@@ -258,6 +258,22 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
         
         os.makedirs(artDir, exist_ok=True)
         
+        # remove dropped vols from confounds (important to do this prior to splitting halves, if requested)
+        # this step is intentionally done before merging with timecourses because it's assumed that timecourses are already trimmed
+        if dropvols > 0:
+            # drop rows from beginning of confounds file
+            confounds = confounds.iloc[dropvols:].reset_index(drop=True)
+            
+            # remove outliers that occur before the first volume
+            outliers = outliers[outliers > dropvols] 
+            
+        elif dropvols < 0:
+            # drop rows from end of confounds file
+            confounds = confounds.iloc[:dropvols].reset_index(drop=True)
+            
+            # remove outliers that occur after the number of volumes
+            outliers = outliers[outliers < nVols] 
+        
         # read in events or timecourse file depending on config file options
         if not 'no' in timecourses:
             tc_reg = pd.read_csv(event_file, sep='\t')
@@ -266,27 +282,12 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             regressor_names.extend(list(tc_reg.columns))
             
             # add timecourses to confounds dataframe
-            confounds = tc_reg.join(confounds, how='outer')
+            confounds = tc_reg.join(confounds)
             
             # create empty stimuli dataframe
             stimuli = []
         else:
             stimuli = pd.read_csv(event_file, sep='\t')
-        
-        # remove dropped vols from confounds (important to do this prior to splitting halves, if requested)
-        if dropvols > 0:
-            # drop rows from beginning of confounds file
-            confounds = confounds.iloc[dropvols:]
-            
-            # remove outliers that occur before the first volume
-            outliers = outliers[outliers > dropvols] 
-            
-        elif dropvols < 0:
-            # drop rows from end of confounds file
-            confounds = confounds.iloc[:dropvols]
-            
-            # remove outliers that occur after the number of volumes
-            outliers = outliers[outliers < nVols] 
         
         # get middle volume to define halves
         midVol = int(nVols/2)
