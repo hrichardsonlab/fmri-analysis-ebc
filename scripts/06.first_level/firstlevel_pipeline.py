@@ -192,8 +192,6 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
         wf.connect([(datasource, compute_roi_params, [('nVols', 'nVols')]),
                     (compute_roi_params, roi, [('t_min', 't_min'),('t_size', 't_size')]),
                     (datasource, roi, [('mni_file', 'in_file')])])
-    # else:
-        # roi_file = datasource.outputs.mni_file
         
     # define function to process data into halves for analysis (if requested in config file)
     def process_data_files(sub, task, mni_file, event_file, timecourses, art_file, confound_file, regressor_opts, run_id, splithalf_id, TR, dropvols, nVols, outDir):
@@ -267,7 +265,6 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
             # remove outliers that occur before the first volume and re-index from 0
             outliers = outliers[outliers >= dropvols]
             outliers = outliers - dropvols
-            
             
         elif dropvols < 0:
             # drop rows from end of confounds file
@@ -614,6 +611,35 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
 
     gensubs = Node(Function(function=substitutes), name='substitute_gen')
     wf.connect(contrastgen, 'contrasts', gensubs, 'contrasts')
+    
+    # define function to save names of variables
+    def save_parameter_names(fsf_file):
+        import json
+        import os
+        
+        pe_map = {}
+        with open(fsf_file, 'r') as f:
+            for line in f:
+                # find the line in the fsf file that starts with evtitle (there should be one for every variable in the model)
+                if line.startswith('set fmri(evtitle'):
+                    # extract the name and parameter estimate number
+                    idx = int(line.split('evtitle')[1].split(')')[0])
+                    name = line.split('"')[1]
+                    pe_map['pe{}'.format(idx)] = name
+        
+        out_file = os.path.join(os.getcwd(), 'pe_names.json')
+        with open(out_file, 'w') as f:
+            json.dump(pe_map, f, indent=2)
+        
+        return out_file
+
+    parameter_mapping = Node(Function(function=save_parameter_names,
+                            input_names=['fsf_file'],
+                            output_names=['out_file']),
+                   name='parameter_mapping')
+                   
+    wf.connect(level1design, 'fsf_files', parameter_mapping, 'fsf_file')
+                   
 
     # extract components from working directory cache and store it at a different location
     sinker = Node(DataSink(), name='datasink')
@@ -636,6 +662,9 @@ def create_firstlevel_workflow(projDir, derivDir, workDir, outDir,
     wf.connect(modelgen, 'con_file', sinker, 'design.@tcon_file')
     wf.connect(modelgen, 'design_cov', sinker, 'design.@cov')
     wf.connect(modelgen, 'design_image', sinker, 'design.@design')
+    wf.connect(level1design, 'fsf_files', sinker, 'design.@fsf')
+    wf.connect(level1design, 'ev_files', sinker, 'design.@ev')
+    wf.connect(parameter_mapping, 'out_file', sinker, 'model.@pe_names')
     wf.connect(glm, 'copes', sinker, 'model.@copes')
     wf.connect(glm, 'dof_file', sinker, 'model.@dof')
     wf.connect(glm, 'logfile', sinker, 'model.@log')
@@ -902,7 +931,7 @@ def main(argv=None):
     for index, sub in enumerate(subjects):
         # check that run info was provided in subject list, otherwise throw an error
         if not args.runs:
-            raise IOError('Run information missing. Make sure you are passing a subject-run list to the pipeline!')    
+            raise IOError('Run information missing. Make sure you are passing a subject-run list to the pipeline!')
             
         # pass runs for this sub
         sub_runs=args.runs[index]
