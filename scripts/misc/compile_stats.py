@@ -1,7 +1,7 @@
 """
 Compiles stats csv files within a results directory into a single csv file
 
-At the moment, this script will process any *mean* stats (skipping voxelwise stats files) for every
+At the moment, this script will process any stats for every
 subject in the resultsDir provided in the config file. The output is a single compiled_stats.csv file in the resultsDir.
 
 """
@@ -47,7 +47,7 @@ def compile_stats(projDir, resultsDir, extract_opt):
             compiled_stats.append(stats_dat)
 
     # concatenate dataframes
-    compiled_df = pd.concat(compiled_stats, ignore_index=True).sort_values(by='sub').reset_index(drop=True)
+    compiled_df = pd.concat(compiled_stats, ignore_index=True).sort_values(by=['sub', 'task', 'run', 'contrast', 'mask','voxel_index']).reset_index(drop=True)
     
     # save as csv file in resultsDir
     compiled_file = op.join(resultsDir, 'compiled_stats.csv')
