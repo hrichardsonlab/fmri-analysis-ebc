@@ -37,16 +37,18 @@ mask	RTPJ, LTPJ, PC, DMPFC, MMPFC, VMPFC
 extract	mean
 folds	
 normalise_rdm	
-nonparametric	yes
-npermutations	5000
-group_comparison	within
-group_variables	no
-est_group_variances	no
-tfce	yes
-stat_thresh	0.95
-cluster_size	10
-top_nregions	6
-hrf_lag	4
-rc_ntps	2
-rc_thresh	0.05
+subject_rdms	
+model_rdms	
+nonparametric	
+npermutations	
+group_comparison	
+group_variables	
+est_group_variances	
+tfce	
+stat_thresh	
+cluster_size	
+top_nregions	
+hrf_lag	
+rc_ntps	
+rc_thresh	
 overwrite	no
