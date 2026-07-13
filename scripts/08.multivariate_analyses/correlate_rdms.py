@@ -19,7 +19,7 @@ import shutil
 def correlate_rdms(projDir, sharedDir, dataset, resultsDir, sub, mask_opts, subject_rdms, model_rdms):
     
     # define rsa directory and check that it exists
-    rsaDir = op.join(resultsDir, 'sub-{}'.format(sub), 'rsa')
+    rsaDir = op.join(resultsDir, '{}'.format(sub), 'rsa')
     rdmDir = op.join(rsaDir, 'neural_rdms')
     
     if not op.exists(rdmDir):
@@ -33,11 +33,11 @@ def correlate_rdms(projDir, sharedDir, dataset, resultsDir, sub, mask_opts, subj
         # loop over models provided in config file
         for m in model_rdms:
             # look for model file in project directory
-            model_file = glob.glob(op.join(projDir, 'files', 'model_rdms', 'sub-{}*RDM-{}.csv'.format(sub, m)))
+            model_file = glob.glob(op.join(projDir, 'files', 'model_rdms', '{}*RDM-{}.csv'.format(sub, m)))
             
             # if model file not found in project directory, look for it in the shared directory
             if not model_file:
-                model_file = glob.glob(op.join(sharedDir,  'model_rdms', '{}'.format(dataset), 'sub-{}*RDM-{}.csv'.format(sub, m)))
+                model_file = glob.glob(op.join(sharedDir,  'model_rdms', '{}'.format(dataset), '{}*RDM-{}.csv'.format(sub, m)))
             
             # if subject RDM file is still not found, raise error
             if not model_file:
@@ -93,9 +93,9 @@ def correlate_rdms(projDir, sharedDir, dataset, resultsDir, sub, mask_opts, subj
     # loop over ROIs 
     for roi in mask_opts:
         # read in averaged neural RDMs for this ROI
-        cor_rdm_file = op.join(rdmDir, 'sub-{}_{}_correlation_averaged_rdm.csv'.format(sub, roi))
-        euc_rdm_file = op.join(rdmDir, 'sub-{}_{}_euclidean_averaged_rdm.csv'.format(sub, roi))
-        sqeuc_rdm_file = op.join(rdmDir, 'sub-{}_{}_squared_euclidean_averaged_rdm.csv'.format(sub, roi))
+        cor_rdm_file = op.join(rdmDir, '{}_{}_correlation_averaged_rdm.csv'.format(sub, roi))
+        euc_rdm_file = op.join(rdmDir, '{}_{}_euclidean_averaged_rdm.csv'.format(sub, roi))
+        sqeuc_rdm_file = op.join(rdmDir, '{}_{}_squared_euclidean_averaged_rdm.csv'.format(sub, roi))
         cor_rdm = pd.read_csv(cor_rdm_file, sep=',')
         euc_rdm = pd.read_csv(euc_rdm_file, sep=',')
         sqeuc_rdm = pd.read_csv(sqeuc_rdm_file, sep=',')
@@ -180,13 +180,13 @@ def correlate_rdms(projDir, sharedDir, dataset, resultsDir, sub, mask_opts, subj
 
     # save outputs
     results_df = pd.DataFrame(results)
-    results_file = op.join(rsaDir, 'sub-{}-rsa_results.csv'.format(sub))
+    results_file = op.join(rsaDir, '{}-rsa_results.csv'.format(sub))
     results_df.to_csv(results_file, index=False)
     print('Saved RSA results to: {}'.format(results_file))
     
 # define function to vectorise the RDMs
 def vectorise_rdm(dat, include_diag):
-    # k=0  will include diagonal; k=1 will exclude diagonal
+    # k=0 will include diagonal; k=1 will exclude diagonal
     if include_diag == 'yes':
         diag = 0
     if include_diag == 'no':

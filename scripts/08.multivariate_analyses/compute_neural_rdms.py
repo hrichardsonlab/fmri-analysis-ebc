@@ -29,7 +29,7 @@ import nilearn
 def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds, loocv, multi_noise_norm, splithalves, conditions, mask_opts, template, normalise, top_nvox, percent, shrink_vals):
     
     # make output rsa directories
-    rsaDir = op.join(resultsDir, 'sub-{}'.format(sub), 'rsa')
+    rsaDir = op.join(resultsDir, '{}'.format(sub), 'rsa')
     vectorsDir = op.join(rsaDir, 'condition_vectors')
     rdmDir = op.join(rsaDir, 'neural_rdms')
     os.makedirs(rsaDir, exist_ok=True)
@@ -52,27 +52,41 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                 
                 # define fold and withheld run model directories
                 if splithalf_id != 0:
-                    modelDir = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'combined_runs', 'splithalf{}'.format(splithalf_id), 'fold{}'.format(fold_id))
+                    modelDir = op.join(resultsDir, '{}'.format(sub), 'model', 'combined_runs', 'splithalf{}'.format(splithalf_id), 'fold{}'.format(fold_id))
                 if splithalf_id == 0:
-                    modelDir = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'combined_runs', 'fold{}'.format(fold_id))
+                    modelDir = op.join(resultsDir, '{}'.format(sub), 'model', 'combined_runs', 'fold{}'.format(fold_id))
                 
-                # should the fold data be compared to a left out run
+                # should the fold data be compared to a left out run or run pair
                 if loocv == 'run':
                     # read fold info
-                    fold_info_file = op.join(resultsDir, 'sub-{}'.format(sub), 'fold_info.tsv')
+                    fold_info_file = op.join(resultsDir, '{}'.format(sub), 'fold_info.tsv')
                     fold_info = pd.read_csv(fold_info_file, sep='\t')
                 
                     # define withheld run directory for this fold
                     withheld_run = fold_info.loc[fold_info['fold'] == 'fold{}'.format(fold_id), 'withheld'].values[0]
-                    withheldDir = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'run{}'.format(withheld_run))
+                    withheldDir = op.join(resultsDir, '{}'.format(sub), 'model', 'run{}'.format(withheld_run))
                     print('Fold {} will be compared to withheld run {}'.format(fold_id, withheld_run))
+
+                if loocv == 'pair':
+                    # read fold info
+                    fold_info_file = op.join(resultsDir, '{}'.format(sub), 'fold_info.tsv')
+                    fold_info = pd.read_csv(fold_info_file, sep='\t')
+                
+                    # define withheld fold directory for this fold
+                    withheld_runs = fold_info.loc[fold_info['fold'] == 'fold{}'.format(fold_id), 'withheld'].values[0]
+                    
+                    # find fold comprised of withheld runs
+                    withheld_fold = fold_info.loc[fold_info['runs'] == withheld_runs, 'fold'].values[0].split('fold')[1]
+                    
+                    withheldDir = op.join(resultsDir, '{}'.format(sub), 'model', 'combined_runs', 'fold{}'.format(withheld_fold))
+                    print('Fold {} will be compared to withheld fold {} which contains run(s) {}'.format(fold_id, withheld_fold, withheld_runs))
                     
             # do not treat runs as folds
             else:
                 if splithalf_id != 0:
                     print('Computing neural RDMs for run {} splithalf {}'.format(fold_id, splithalf_id))
                     # check if combined runs directory exists and use splithalf folders there if so
-                    combinedDir = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'combined_runs')
+                    combinedDir = op.join(resultsDir, '{}'.format(sub), 'model', 'combined_runs')
                     if op.exists(combinedDir):
                         combined = 'yes'
                         modelDir = op.join(combinedDir, 'splithalf{}'.format(splithalf_id))
@@ -84,13 +98,13 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                 if splithalf_id == 0:
                     # don't bother checking for a combined runs directory here because at least 2 runs, folds, or splithalves of data are needed
                     combined = 'no'
-                    modelDir = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'run{}'.format(fold_id))
+                    modelDir = op.join(resultsDir, '{}'.format(sub), 'model', 'run{}'.format(fold_id))
                     
             # grab roi file for each mask requested
             roi_masks = list()
             for m in mask_opts:
                 # define aroi prefix
-                aroi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'arois', 'sub-{}_'.format(sub))
+                aroi_prefix = op.join(resultsDir, '{}'.format(sub), 'arois', '{}_'.format(sub))
                 
                 # if a functional ROI was specified
                 if 'fROI' in m:
@@ -104,27 +118,27 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                             # ensure that the fROI from the *opposite* splithalf is picked up
                             if splithalf_id == 1:
                                 print('Will skip stats extraction in splithalf{} for any fROIs defined in splithalf{}'.format(splithalf_id, splithalf_id))
-                                froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'run{}_splithalf2'.format(fold_id))
+                                froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'run{}_splithalf2'.format(fold_id))
                                 
                             if splithalf_id == 2:
                                 print('Will skip stats extraction in splithalf{} for any fROIs defined in splithalf{}'.format(splithalf_id, splithalf_id))
-                                froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'run{}_splithalf1'.format(fold_id))
+                                froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'run{}_splithalf1'.format(fold_id))
                         
                         elif splithalf_id != 0 and combined == 'yes':
                             # ensure that the fROI from the *opposite* splithalf is picked up
                             if splithalf_id == 1:
                                 print('Will skip stats extraction in splithalf{} for any fROIs defined in splithalf{}'.format(splithalf_id, splithalf_id))
-                                froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'combined_runs', 'splithalf2')
+                                froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'combined_runs', 'splithalf2')
                                 
                             if splithalf_id == 2:
                                 print('Will skip stats extraction in splithalf{} for any fROIs defined in splithalf{}'.format(splithalf_id, splithalf_id))
-                                froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'combined_runs', 'splithalf1')
+                                froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'combined_runs', 'splithalf1')
                         
                         elif splithalf_id == 0 and combined == 'no':
-                            froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'run{}'.format(fold_id))
+                            froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'run{}'.format(fold_id))
 
                         elif splithalf_id == 0 and combined == 'yes':
-                            froi_prefix = op.join(resultsDir, 'sub-{}'.format(sub), 'frois', 'combined_runs')
+                            froi_prefix = op.join(resultsDir, '{}'.format(sub), 'frois', 'combined_runs')
                     
                     # if an froiDir was provided - note that this option assumes (1) no splithalf fROIs and (2) fROIs defined by 1 run or combined across runs
                     else:
@@ -134,7 +148,7 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                         print('Will look for fROIs in froiDir: {}'.format(froiDir))
 
                         # define combined froiDir for this subject and check if it exists
-                        combinedfroiDir = op.join(froiDir, 'sub-{}'.format(sub), 'frois', 'combined_runs')
+                        combinedfroiDir = op.join(froiDir, '{}'.format(sub), 'frois', 'combined_runs')
                         
                        # define fROI prefix depending on whether fROIs were combined
                         if op.exists(combinedfroiDir):
@@ -143,31 +157,31 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                         else: # if there is no combined_runs folder in the froiDir
                             # this presumes that if fROIs were not combined, then there was only 1 run of the localiser/task acquired
                             # this could be modified to track an fROI specific fold_id variable but it can't use the current fold_id variable because this is based off of runs of a separate task
-                            froi_prefix = op.join(froiDir, 'sub-{}'.format(sub), 'frois', 'run1')
+                            froi_prefix = op.join(froiDir, '{}'.format(sub), 'frois', 'run1')
                             
                             # check for the fROIs in run2 folder if run1 does not exist
                             if not op.exists(froi_prefix):
-                                froi_prefix = op.join(froiDir, 'sub-{}'.format(sub), 'frois', 'run2')
+                                froi_prefix = op.join(froiDir, '{}'.format(sub), 'frois', 'run2')
                         
                     # grab the mni file (used only if resampling is required)
-                    mni_file = glob.glob(op.join(resultsDir, 'sub-{}'.format(sub), 'preproc', '*', '*_bold.nii.gz'))[0]
+                    mni_file = glob.glob(op.join(resultsDir, '{}'.format(sub), 'preproc', '*', '*_bold.nii.gz'))[0]
 
                     if not froi_prefix:
                         print('ERROR: unable to locate fROI file. Make sure a resultsDir or froiDir is provided in the config file!')
                     else:
                         roi_name = m.split('fROI-')[1]
-                        roi_file = glob.glob(op.join('{}'.format(froi_prefix),'sub-{}_*{}_*.nii.gz'.format(sub, roi_name)))
+                        roi_file = glob.glob(op.join('{}'.format(froi_prefix),'{}_*{}_*.nii.gz'.format(sub, roi_name)))
                         
                         # if there are multiple roi_files that match criteria, use stricter criteria
                         if len(roi_file) > 1:
                             # if top x% indicated in config file, look for the file that matches the specified percentage
                             if percent == 'yes':
                                 print('Multiple {} fROIs found. Using the file with {}% top voxels.'.format(roi_name, top_nvox))
-                                roi_file = glob.glob(op.join('{}'.format(froi_prefix),'sub-{}_*{}_*_{}pc_*.nii.gz'.format(sub, roi_name, top_nvox)))                            
+                                roi_file = glob.glob(op.join('{}'.format(froi_prefix),'{}_*{}_*_{}pc_*.nii.gz'.format(sub, roi_name, top_nvox)))                            
                             # if x% not indicated in config file, look for the file that matches the number of voxels specified in config file
                             else:
                                 print('Multiple {} fROIs found. Using the file with {} top voxels.'.format(roi_name, top_nvox))
-                                roi_file = glob.glob(op.join('{}'.format(froi_prefix),'sub-{}_*_{}_*top{}.nii.gz'.format(sub, roi_name, top_nvox)))
+                                roi_file = glob.glob(op.join('{}'.format(froi_prefix),'{}_*_{}_*top{}.nii.gz'.format(sub, roi_name, top_nvox)))
                                 
                         roi_masks.append(roi_file)
                         print('Using {} fROI file from {}'.format(roi_name, roi_file))
@@ -175,12 +189,12 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                 # if any other ROI was specified
                 else:
                     # grab the mni file (used only if resampling is required)
-                    mni_file = glob.glob(op.join(resultsDir, 'sub-{}'.format(sub), 'preproc', '*', '*_bold.nii.gz'))[0]
+                    mni_file = glob.glob(op.join(resultsDir, '{}'.format(sub), 'preproc', '*', '*_bold.nii.gz'))[0]
                     
                     # if a freesurfer ROI was specified
                     if 'FS' in m:
                         roi_name = m.split('FS-')[1]
-                        roi_file = glob.glob(op.join(projDir, 'files', 'ROIs' , '{}'.format(roi_name), 'sub-{}_*_{}.nii.gz'.format(sub, roi_name)))#[0]
+                        roi_file = glob.glob(op.join(projDir, 'files', 'ROIs' , '{}'.format(roi_name), '{}_*_{}.nii.gz'.format(sub, roi_name)))#[0]
                         roi_masks.append(roi_file)
                         print('Using {} FreeSurfer defined file from {}'.format(roi_name, roi_file))  
                     
@@ -208,6 +222,8 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
             print('Model directory: {}'.format(modelDir))
             if loocv == 'run':
                 print('Withheld run directory: {}'.format(withheldDir))
+            if loocv == 'pair':
+                print('Withheld fold directory: {}'.format(withheldDir))
             
             # for each ROI search space
             for r, roi in enumerate(roi_masks):
@@ -283,7 +299,7 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                         cope_img = image.load_img(cope_file)
                         
                         # if leave one out requested, load cope from left out run
-                        if loocv == 'run':
+                        if loocv == 'run' or loocv == 'pair':
                             withheld_cope_file = glob.glob(op.join(withheldDir, '*_{}_cope.nii.gz'.format(c)))[0]
                             withheld_cope_img = image.load_img(withheld_cope_file)                            
                             
@@ -294,17 +310,17 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                         cope_file = glob.glob(op.join(modelDir, '*_{}_tstat.nii.gz'.format(c)))[0]
                         cope_img = image.load_img(cope_file)
                         
-                        # if leave one out requested, load t-stats from left out run
-                        if loocv == 'run':
+                        # if leave one out requested, load t-stats from left out run or fold
+                        if loocv == 'run' or loocv == 'pair':
                             withheld_cope_file = glob.glob(op.join(withheldDir, '*_{}_tstat.nii.gz'.format(c)))[0]
-                            withheld_cope_img = image.load_img(withheld_cope_file) 
-                    
+                            withheld_cope_img = image.load_img(withheld_cope_file)
+                            
                     # squeeze the statistical map to remove the 4th singleton dimension if using anatomical/atlas ROI
                     # this dimension is not adding any information, so this is fine to do; the 3D map of stats values is preserved.
                     # this step isn't necessary for fROIs because they were defined using the functional data and also have a 4th singleton dimension
                     if not 'fROI' in mask_opts[r] and not 'FS' in mask_opts[r] and not 'aROI' in mask_opts[r]:
                         cope_img = image.math_img('np.squeeze(img)', img=cope_img)
-                        if loocv == 'run':
+                        if loocv == 'run' or loocv == 'pair':
                             withheld_cope_img = image.math_img('np.squeeze(img)', img=withheld_cope_img)
                         
                     # extract stats vector of voxel values
@@ -312,7 +328,7 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                     vec = masker.fit_transform(cope_img).squeeze()
                     
                     # extract vector from withheld run if requested
-                    if loocv == 'run':
+                    if loocv == 'run' or loocv == 'pair':
                         withheld_vec = masker.fit_transform(withheld_cope_img).squeeze()
                     
                     # apply multivariate noise normalisation if requested
@@ -321,32 +337,42 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
                         vec = apply_multi_norm(whitening_matrix, vec)
                         
                         # apply the whitening matrix estimated on the fold data to the withheld run if leave one out requested
-                        if loocv == 'run':
+                        if loocv == 'run' or loocv == 'pair':
                             withheld_vec = apply_multi_norm(whitening_matrix, withheld_vec)
                     
                     # add the pattern for this condition to the patterns variable for this roi
                     fold_patterns.append(vec)
                     
                     # save withheld run pattern if requested
-                    if loocv == 'run':
+                    if loocv == 'run' or loocv == 'pair':
                         withheld_patterns.append(withheld_vec)
                 
                 # define pattern type label for naming output files
                 pattern_type = 'fold' if folds == 'yes' else 'run'
                 
                 # save condition vectors for this ROI
-                save_patterns(sub, task, fold_patterns, mask_name, fold_id, splithalf_id, conditions, vectorsDir, pattern_type)
-                if loocv == 'run':
+                # only save withheld patterns if loocv was requested because if multi noise norm was applied, 
+                # the betas whitened from a matrix estimated on the training set of runs included in the fold should be saved *not* betas whitened from the runs themselves
+                # if all patterns are saved, then the files will be overwritten when duplicate comparisons happen (e.g., fold1: 1,2 (3,4 withheld); fold2: 3,4 (1,2 withheld)
+                # this doesn't matter if multi noise norm wasn't used because the values will be identical
+                if loocv == 'run': # if leave-one-run-out
                     save_patterns(sub, task, withheld_patterns, mask_name, withheld_run, splithalf_id, conditions, vectorsDir, 'run')
+                elif loocv == 'pair': # if leave-one-pair-out
+                    save_patterns(sub, task, withheld_patterns, mask_name, withheld_fold, splithalf_id, conditions, vectorsDir, 'fold')
+                else: # if no cross-validation
+                    save_patterns(sub, task, fold_patterns, mask_name, fold_id, splithalf_id, conditions, vectorsDir, pattern_type)
                 
                 # store the condition vectors for this ROI and run/fold for RDM calculation
                 if loocv == 'run':
                     patterns[(mask_name, fold_id, splithalf_id)] = {'fold': np.array(fold_patterns), 
                                                                     'withheld': np.array(withheld_patterns),
                                                                     'withheld_run': withheld_run}
+                elif loocv == 'pair':
+                    patterns[(mask_name, fold_id, splithalf_id)] = {'fold': np.array(fold_patterns), 
+                                                                    'withheld': np.array(withheld_patterns),
+                                                                    'withheld_fold': withheld_fold}
                 else:
                     patterns[(mask_name, fold_id, splithalf_id)] = np.array(fold_patterns)
-                    
                 
     # calculate dissimilarity across runs/folds (or within a run/fold)
     calc_dissimilarity(sub, task, patterns, conditions, rdmDir, normalise, loocv)
@@ -355,7 +381,7 @@ def generate_rdm(projDir, sharedDir, resultsDir, froiDir, sub, task, runs, folds
 def calc_whitening_matrix(resultsDir, vectorsDir, sub, fold_id, roi_name, roi_mask, shrink_vals):
     
     # read in subject fold info file to get list of runs in each fold
-    fold_info_file = op.join(resultsDir, 'sub-{}'.format(sub), 'fold_info.tsv')
+    fold_info_file = op.join(resultsDir, '{}'.format(sub), 'fold_info.tsv')
     print('Looking up runs in fold{} using: {}'.format(fold_id, fold_info_file))
     fold_info = pd.read_csv(fold_info_file, sep='\t')
     runs_str = fold_info.loc[fold_info['fold'] == 'fold{}'.format(fold_id), 'runs'].values[0]
@@ -367,7 +393,7 @@ def calc_whitening_matrix(resultsDir, vectorsDir, sub, fold_id, roi_name, roi_ma
     # loop over each run in the fold
     for r, run in enumerate(fold_runs):
         # load run residuals file
-        resid_file = op.join(resultsDir, 'sub-{}'.format(sub), 'model', 'run{}'.format(run), 'res4d.nii.gz')
+        resid_file = op.join(resultsDir, '{}'.format(sub), 'model', 'run{}'.format(run), 'res4d.nii.gz')
         resid_img = image.load_img(resid_file)
         
         # extract residuals timeseries for voxels in ROI
@@ -438,7 +464,7 @@ def apply_multi_norm(whitening_matrix, beta_vec):
 
 # define function to wrangle and save run/fold RDM data into a useable csv format
 def save_patterns(sub, task, patterns, mask_name, fold_id, splithalf_id, conditions, vectorsDir, pattern_type):
-
+    
     patterns = np.array(patterns)
     print('Shape of extracted vector data (conditions x voxels): {}'.format(patterns.shape))
     
@@ -450,13 +476,13 @@ def save_patterns(sub, task, patterns, mask_name, fold_id, splithalf_id, conditi
                    'splithalf': splithalf_id,
                    'condition': cond,
                    'ROI': mask_name}
-            vector_file = op.join(vectorsDir, 'sub-{}_task-{}_{}-{}_splithalf-{}_{}_condition_vectors.csv'.format(sub, task, pattern_type, fold_id, splithalf_id, mask_name))
+            vector_file = op.join(vectorsDir, '{}_task-{}_{}-{}_splithalf-{}_{}_condition_vectors.csv'.format(sub, task, pattern_type, fold_id, splithalf_id, mask_name))
         else:
             row = {'sub': sub,
                    pattern_type: fold_id,
                    'condition': cond,
                    'ROI': mask_name}
-            vector_file = op.join(vectorsDir, 'sub-{}_task-{}_{}-{}_{}_condition_vectors.csv'.format(sub, task, pattern_type, fold_id, mask_name))
+            vector_file = op.join(vectorsDir, '{}_task-{}_{}-{}_{}_condition_vectors.csv'.format(sub, task, pattern_type, fold_id, mask_name))
             
         # add voxel values
         voxels = patterns[c]
@@ -497,21 +523,45 @@ def calc_dissimilarity(sub, task, patterns, conditions, rdmDir, normalise, loocv
                 # extract patterns for the fold and withheld run
                 A = fold_data['fold']
                 B = fold_data['withheld']
-                run = fold_data['withheld_run']
+                loo_run = fold_data['withheld_run']
 
                 # compute the correlation distance (1-correlation), euclidean distance, and squared euclidean distance               
                 euclid_AB = cdist(A, B, metric='euclidean')
                 euclid_BA = cdist(B, A, metric='euclidean')
 
-                rdms[roi][('fold-run', fold, run)] = {'correlation': cdist(A, B, metric='correlation'),
-                                                  'euclidean': euclid_AB,
-                                                  'squared_euclidean': euclid_AB ** 2}
+                rdms[roi][('fold-run', fold, loo_run)] = {'correlation': cdist(A, B, metric='correlation'),
+                                                          'euclidean': euclid_AB,
+                                                          'squared_euclidean': euclid_AB ** 2}
 
-                rdms[roi][('run-fold', run, fold)] = {'correlation': cdist(B, A, metric='correlation'),
-                                                  'euclidean': euclid_BA,
-                                                  'squared_euclidean': euclid_BA ** 2}
-                                                         
-        # scenario 2: multiple runs/folds - compute RDMs across runs/folds 
+                rdms[roi][('run-fold', loo_run, fold)] = {'correlation': cdist(B, A, metric='correlation'),
+                                                          'euclidean': euclid_BA,
+                                                          'squared_euclidean': euclid_BA ** 2}
+        
+        # scenario 2: leave-one-pair/fold-out, compare fold patterns to withheld fold patterns
+        elif loocv == 'pair':
+            for fold in folds:
+                
+                # extract the data associated with this fold
+                fold_data = patterns[(roi, fold, splits[0])]
+                
+                # extract patterns for the fold and withheld run
+                A = fold_data['fold']
+                B = fold_data['withheld']
+                loo_fold = fold_data['withheld_fold']
+                
+                # compute the correlation distance (1-correlation), euclidean distance, and squared euclidean distance               
+                euclid_AB = cdist(A, B, metric='euclidean')
+                euclid_BA = cdist(B, A, metric='euclidean')
+
+                rdms[roi][('fold', fold, loo_fold)] = {'correlation': cdist(A, B, metric='correlation'),
+                                                       'euclidean': euclid_AB,
+                                                       'squared_euclidean': euclid_AB ** 2}
+
+                rdms[roi][('fold', loo_fold, fold)] = {'correlation': cdist(B, A, metric='correlation'),
+                                                       'euclidean': euclid_BA,
+                                                       'squared_euclidean': euclid_BA ** 2}
+                                                                 
+        # scenario 3: multiple runs/folds - compute RDMs across runs/folds 
         elif len(folds) > 1: 
             for i, fold1 in enumerate(folds):
                 for fold2 in folds[i+1:]:
@@ -531,7 +581,7 @@ def calc_dissimilarity(sub, task, patterns, conditions, rdmDir, normalise, loocv
                                                          'euclidean': euclid_BA,
                                                          'squared_euclidean': euclid_BA ** 2}
         
-        # scenario 3: one run + splithalves - compute RDMs across splithalves
+        # scenario 4: one run + splithalves - compute RDMs across splithalves
         elif len(splits) > 1:
             run = folds[0]
             
@@ -666,10 +716,10 @@ def save_rdms(sub, task, conditions, rdmDir, rdms, avg_rdms, normalise, loocv):
                 rdm = rdms[roi][comp][metric]
                 df = pd.DataFrame(rdm, index=conditions, columns=conditions)
                 if normalise == 'yes':
-                    rdm_file = op.join(rdmDir, 'sub-{}_{}_{}_{}_normalised_rdm.csv'.format(sub, roi, label, metric))
+                    rdm_file = op.join(rdmDir, '{}_{}_{}_{}_normalised_rdm.csv'.format(sub, roi, label, metric))
                     print('Saved normalized RDM: {}'.format(rdm_file))
                 else:
-                    rdm_file = op.join(rdmDir, 'sub-{}_{}_{}_{}_rdm.csv'.format(sub, roi, label, metric))
+                    rdm_file = op.join(rdmDir, '{}_{}_{}_{}_rdm.csv'.format(sub, roi, label, metric))
                     print('Saved RDM: {}'.format(rdm_file))
                 df.to_csv(rdm_file, index=False)
                 
@@ -677,7 +727,7 @@ def save_rdms(sub, task, conditions, rdmDir, rdms, avg_rdms, normalise, loocv):
         for metric in avg_rdms[roi]:
             rdm_avg = avg_rdms[roi][metric]
             df_avg = pd.DataFrame(rdm_avg, index=conditions, columns=conditions)
-            rdm_avg_file = op.join(rdmDir, 'sub-{}_{}_{}_averaged_rdm.csv'.format(sub, roi, metric))
+            rdm_avg_file = op.join(rdmDir, '{}_{}_{}_averaged_rdm.csv'.format(sub, roi, metric))
             df_avg.to_csv(rdm_avg_file, index=False)
             print('Saved averaged RDM: {}'.format(rdm_avg_file))
 
@@ -775,7 +825,7 @@ def main(argv=None):
     
     # for each subject in the list of subjects
     for index, sub in enumerate(args.subjects):
-        print('Computing neural RDMs for sub-{}'.format(sub))
+        print('Computing neural RDMs for {}'.format(sub))
         
         # check that run info was provided in subject list, otherwise throw an error
         if not args.runs:

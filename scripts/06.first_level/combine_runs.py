@@ -386,7 +386,7 @@ def main(argv=None):
             if not args.runs:
                 raise IOError('Run information missing. Make sure you are passing a subject-run list to the pipeline!')
             
-            # pass runs for this sub
+           # pass runs for this sub
             fold_runs = args.runs[index].replace(' ','')
             
             # give a warning if the user requested run folds and leave one out
@@ -403,35 +403,65 @@ def main(argv=None):
                 # generate leave-one-run-out folds
                 folds = [[r for r in runs if r != left_out] for left_out in runs]
                 
-                # sort folds by the single run they contain
+                # sort folds by runs they contain
                 folds = sorted(folds, key=lambda x: x[0])
+            
+            elif loocv == 'pair': # leave-one-pair-out
+                print('Combining runs using leave-one-pair-out approach')
                 
-            elif loocv == 'pair': # combine all run pairs
-                print('Combining runs using all-run-pairs approach')
-                # generate leave-one-pair-out folds
-                folds = [list(pair) for pair in combinations(runs, 2)]
+                # count the number of runs to deal with cases where folds would have fewer than 2 runs
+                n_runs = len(runs)
                 
-                # sort folds by the single run they contain
-                folds = sorted(folds, key=lambda x: x[0])
+                # make folds with single runs if there are only 2 runs
+                fold_size = 1 if n_runs == 2 else 2
+                
+                # flag to the user that the folds will only include 1 run if needed
+                if fold_size == 1:
+                    print('This participant only has 2 runs, so folds will contain only 1 run')
+                    
+                # initialise outputs and first fold number
+                folds = []
+                withheld = []
+                
+                # generate leave-one-pair-out folds: this will generate folds of run pairs and folds of the remaining runs (e.g., fold1: runs - 1,2; withheld - 3,4,5)
+                # folds = [list(pair) for pair in combinations(runs, fold_size)]
+                for pair in combinations(runs, fold_size):
+
+                    pair = list(pair)
+                    test_runs = sorted(set(runs) - set(pair))
+                    
+                    # create a fold that is the pair with the test runs withheld
+                    folds.append(pair)
+                    withheld.append(test_runs)
+                    
+                    # create a fold that is the test runs with the pair withheld
+                    folds.append(test_runs)
+                    withheld.append(pair)
                 
             else:
                 # split folds first
                 folds = fold_runs.split(';')
-                
+
                 # convert each fold into list of run integers
                 folds = [list(map(int, f.split(','))) for f in folds]
             
             # define withheld run(s)
-            withheld = [[r for r in runs if r not in fold] for fold in folds]
+            if loocv != 'pair': # withheld runs were already defined above for the leave-one-pair-out approach
+                withheld = [[r for r in runs if r not in fold] for fold in folds]
             
             # save file with run/fold information
             fold_df = pd.DataFrame({'fold': ['fold{}'.format(i+1) for i in range(len(folds))],
                                     'runs': [','.join(map(str, r)) for r in folds],
                                     'withheld': [','.join(map(str, w)) for w in withheld]})
-            fold_df.to_csv(op.join(resultsDir, 'sub-{}'.format(sub), 'fold_info.tsv'), sep='\t', index=False)
+            
+            # drop duplicates if needed
+            fold_df = fold_df.drop_duplicates(subset=['runs', 'withheld'])
+            folds = list(map(list, dict.fromkeys(map(tuple, folds))))
+            
+            fold_df.to_csv(op.join(resultsDir, sub, 'fold_info.tsv'), sep='\t', index=False)
             
             # save number of folds
-            num_folds = len(folds)
+            num_folds = len(fold_df.fold)
             print('Runs will be combined in {} fold(s)'.format(num_folds))
             
             for fold_id, fold in enumerate(folds):

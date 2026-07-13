@@ -21,18 +21,34 @@ from scipy.stats import pearsonr, spearmanr
 def calc_fold_reliability(projDir, resultsDir, sub, sub_runs, mask_opts, fold_stats, rdm_stats, loocv):
     
     # define subject RDM directory and check that it exists
-    rdmDir = op.join(resultsDir, 'sub-{}'.format(sub), 'rsa', 'neural_rdms')
+    rdmDir = op.join(resultsDir, '{}'.format(sub), 'rsa', 'neural_rdms')
     
     if not op.exists(rdmDir):
         raise IOError('neural RDM directory {} not found.'.format(rdmDir))
     
-    # define fold pairs depending on whether leave one run out was specified
+    # define fold pairs depending on whether leave one run or fold out was specified
     if loocv == 'run': # define fold-run pairs
         # read in subject fold info file to get list of runs in each fold
-        fold_info_file = op.join(resultsDir, 'sub-{}'.format(sub), 'fold_info.tsv')
+        fold_info_file = op.join(resultsDir, '{}'.format(sub), 'fold_info.tsv')
         fold_info = pd.read_csv(fold_info_file, sep='\t')
         fold_pairs = [(int(row.fold.replace('fold', '')), int(row.withheld)) for _, row in fold_info.iterrows()]
+    
+    elif loocv == 'pair': # define fold pairs
+        # read in subject fold info file to get list of runs in each fold
+        fold_info_file = op.join(resultsDir, '{}'.format(sub), 'fold_info.tsv')
+        fold_info = pd.read_csv(fold_info_file, sep='\t')
+        fold_pairs = []
         
+        for r, row in fold_info.iterrows():
+
+            fold1 = int(row.fold.replace('fold', ''))
+
+            # find the fold corresponding to the withheld runs
+            fold2 = int(fold_info.loc[fold_info['runs'] == row.withheld, 'fold'].iloc[0].replace('fold', ''))
+
+            # skip duplicate comparisons
+            if fold1 < fold2:
+                fold_pairs.append((fold1, fold2))
     else:
         # all possible fold pairs
         fold_pairs = list(combinations(sub_runs, 2))
@@ -66,14 +82,14 @@ def calc_fold_reliability(projDir, resultsDir, sub, sub_runs, mask_opts, fold_st
                 
             # read in averaged neural RDMs for this ROI
             ## fold 1 vs fold 2
-            fold1vs2_cor_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_correlation_*rdm.csv'.format(sub, roi, fold1vs2_label)))
-            fold1vs2_euc_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_euclidean_*rdm.csv'.format(sub, roi, fold1vs2_label)))
-            fold1vs2_sqeuc_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_squared_euclidean_*rdm.csv'.format(sub, roi, fold1vs2_label)))
+            fold1vs2_cor_file = glob.glob(op.join(rdmDir, '{}_{}_{}_correlation_*rdm.csv'.format(sub, roi, fold1vs2_label)))
+            fold1vs2_euc_file = glob.glob(op.join(rdmDir, '{}_{}_{}_euclidean_*rdm.csv'.format(sub, roi, fold1vs2_label)))
+            fold1vs2_sqeuc_file = glob.glob(op.join(rdmDir, '{}_{}_{}_squared_euclidean_*rdm.csv'.format(sub, roi, fold1vs2_label)))
             
             ## fold 2 vs fold 1
-            fold2vs1_cor_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_correlation_*rdm.csv'.format(sub, roi, fold2vs1_label)))
-            fold2vs1_euc_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_euclidean_*rdm.csv'.format(sub, roi, fold2vs1_label)))
-            fold2vs1_sqeuc_file = glob.glob(op.join(rdmDir, 'sub-{}_{}_{}_squared_euclidean_*rdm.csv'.format(sub, roi, fold2vs1_label)))
+            fold2vs1_cor_file = glob.glob(op.join(rdmDir, '{}_{}_{}_correlation_*rdm.csv'.format(sub, roi, fold2vs1_label)))
+            fold2vs1_euc_file = glob.glob(op.join(rdmDir, '{}_{}_{}_euclidean_*rdm.csv'.format(sub, roi, fold2vs1_label)))
+            fold2vs1_sqeuc_file = glob.glob(op.join(rdmDir, '{}_{}_{}_squared_euclidean_*rdm.csv'.format(sub, roi, fold2vs1_label)))
             
             # check that files are found and give informative error if not
             if not fold1vs2_cor_file:
@@ -358,7 +374,7 @@ def main(argv=None):
         
     # for each subject in the list of subjects
     for index, sub in enumerate(args.subjects):
-        print('Checking fold reliability for sub-{}'.format(sub))
+        print('Checking fold reliability for {}'.format(sub))
         
         # check that run info was provided in subject list, otherwise throw an error
         if not args.runs:

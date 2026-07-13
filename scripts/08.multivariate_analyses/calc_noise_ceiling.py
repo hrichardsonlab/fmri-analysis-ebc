@@ -40,15 +40,15 @@ def calc_noise_ceiling(projDir, sharedDir, resultsDir, subjects, conditions, mas
         # for each subject in the list of subjects
         for sub in subjects:
             # define subject RDM directory and check that it exists
-            rdmDir = op.join(resultsDir, 'sub-{}'.format(sub), 'rsa', 'neural_rdms')
+            rdmDir = op.join(resultsDir, '{}'.format(sub), 'rsa', 'neural_rdms')
             
             if not op.exists(rdmDir):
                 raise IOError('neural RDM directory {} not found.'.format(rdmDir))
                 
             # read in averaged neural RDMs for this ROI
-            sub_cor_file = op.join(rdmDir, 'sub-{}_{}_correlation_averaged_rdm.csv'.format(sub, roi))
-            sub_euc_file = op.join(rdmDir, 'sub-{}_{}_euclidean_averaged_rdm.csv'.format(sub, roi))
-            sub_sqeuc_file = op.join(rdmDir, 'sub-{}_{}_squared_euclidean_averaged_rdm.csv'.format(sub, roi))
+            sub_cor_file = op.join(rdmDir, '{}_{}_correlation_averaged_rdm.csv'.format(sub, roi))
+            sub_euc_file = op.join(rdmDir, '{}_{}_euclidean_averaged_rdm.csv'.format(sub, roi))
+            sub_sqeuc_file = op.join(rdmDir, '{}_{}_squared_euclidean_averaged_rdm.csv'.format(sub, roi))
             
             # append subject RDM to list of files
             cor_files.append(sub_cor_file)
