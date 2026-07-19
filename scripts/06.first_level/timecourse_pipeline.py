@@ -894,7 +894,7 @@ def main(argv=None):
     mask_opts=config_file.loc['mask',1].replace(' ','').split(',')
     splithalf=config_file.loc['splithalf',1]
     template=config_file.loc['template',1]
-     top_nvox=config_file.loc['top_nvox',1]
+    top_nvox=config_file.loc['top_nvox',1]
     extract_opt=config_file.loc['extract',1]
     space=config_file.loc['space',1]
     overwrite=config_file.loc['overwrite',1]
@@ -917,7 +917,11 @@ def main(argv=None):
     else:
         percent = 'no'
         top_nvox = int(top_nvox)
-        
+    
+    # remove psc flag if present
+    if extract_opt.endswith('-psc'):
+        extract_opt = extract_opt.replace('-psc', '')
+    
     if space == 'MNI':
         space_name = 'MNI152NLin2009cAsym'
         print('Pipeline will be run using outputs in {} space'.format(space_name))
@@ -986,8 +990,8 @@ def main(argv=None):
     layout = BIDSLayout(bidsDir)
     
     # extract TR info from bidsDir bold json files (assumes TR is same across runs)
-    epi = layout.get(suffix='bold', task=task, return_type='file')[0] # take first file
-    TR = layout.get_metadata(epi)['RepetitionTime'] # extract TR field    
+    epi = layout.get(suffix='bold', task=task, return_type='file')[20] # take first file
+    TR = layout.get_metadata(epi)['RepetitionTime'] # extract TR field  
 
     # define subjects - if none are provided in the script call, they are extracted from the BIDS directory layout information
     subjects = args.subjects if args.subjects else layout.get_subjects()
